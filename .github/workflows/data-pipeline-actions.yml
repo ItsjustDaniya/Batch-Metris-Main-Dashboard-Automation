@@ -33,7 +33,7 @@ jobs:
 
       - name: Execute Data_Pipeline_Automation.py
         env:
-          ASHRITHA_SECRET_KEY: ${{ secrets.ASHRITHA_SECRET_KEY }}
+          DANIYA_SECRET_KEY: ${{ secrets.DANIYA_SECRET_KEY }}
           SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           USERNAME: ${{ secrets.USERNAME }}
           METABASE_URL: ${{ secrets.METABASE_URL }}
