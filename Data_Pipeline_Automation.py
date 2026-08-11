@@ -16,12 +16,10 @@ import traceback
 start_time = time.time()
 
 # -------------------- ENV & AUTH --------------------
-sec = os.getenv("DANIYA_SECRET_KEY")
-User_name = os.getenv("USERNAME")
+METABASE_API_KEY = os.getenv("METABASE_API_KEY")
 service_account_json = os.getenv("SERVICE_ACCOUNT_JSON")
-MB_URL = os.getenv("METABASE_URL")
 
-if not sec or not service_account_json:
+if not METABASE_API_KEY or not service_account_json:
     raise ValueError("❌ Missing environment variables. Check GitHub secrets.")
 
 # -------------------- GOOGLE AUTH --------------------
@@ -36,32 +34,10 @@ creds = Credentials.from_service_account_info(
 gc = gspread.authorize(creds)
 
 # -------------------- METABASE AUTH --------------------
-token = None
-METABASE_HEADERS = {}
-
-def refresh_metabase_token():
-    """Refresh Metabase session token"""
-    global token, METABASE_HEADERS
-    try:
-        res = requests.post(
-            MB_URL,
-            headers={"Content-Type": "application/json"},
-            json={"username": User_name, "password": sec},
-            timeout=30
-        )
-        res.raise_for_status()
-        token = res.json()['id']
-        METABASE_HEADERS = {
-            'Content-Type': 'application/json',
-            'X-Metabase-Session': token
-        }
-        print("✅ Metabase session token refreshed")
-    except Exception as e:
-        print(f"❌ Failed to refresh Metabase token: {e}")
-        raise
-
-# Initial authentication
-refresh_metabase_token()
+METABASE_HEADERS = {
+    'Content-Type': 'application/json',
+    'x-api-key': METABASE_API_KEY
+}
 
 # -------------------- SHEET KEYS --------------------
 SHEET_BATCH_REPORT    = '1D-nPNTKoma5mS6B5_gAH5vRWysoGbE6inPghK969n8A'
@@ -73,18 +49,8 @@ SHEET_NPS             = '1fK-H9xyW9h0dnO97GHc0i07x7JHVhAgfclywKZ7bA-4'
 
 # -------------------- UTILITIES --------------------
 def mb_post(card_url, retry_count=0):
-    """
-    Make POST request to Metabase with automatic token refresh on auth failure
-    """
     try:
         r = requests.post(card_url, headers=METABASE_HEADERS, timeout=120)
-        
-        # If unauthorized and haven't retried yet, refresh token and retry
-        if r.status_code == 401 and retry_count == 0:
-            print("⚠️ Metabase token expired, refreshing...")
-            refresh_metabase_token()
-            return mb_post(card_url, retry_count=1)
-        
         r.raise_for_status()
         return r
     except requests.exceptions.Timeout:
