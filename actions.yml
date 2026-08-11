@@ -33,9 +33,8 @@ jobs:
 
       - name: Execute Data_Pipeline_Automation.py
         env:
-          DANIYA_SECRET_KEY: ${{ secrets.DANIYA_SECRET_KEY }}
+          METABASE_API_KEY: ${{ secrets.METABASE_API_KEY }}
           SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
-          USERNAME: ${{ secrets.USERNAME }}
           METABASE_URL: ${{ secrets.METABASE_URL }}
 
         run: |
