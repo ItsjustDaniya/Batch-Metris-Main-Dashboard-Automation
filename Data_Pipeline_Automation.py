@@ -203,7 +203,7 @@ def run_nps():
             '2025 29 May', '2025 30 June', '2025 31 July', '2025 32 August',
             '2025 33 September', '2025 34 October', '2025 35 November',
             '2025 36 December', '2026 37 January', '2026 38 Febraury','Agentic AI','2026 39 March','2026 40 April','2026 41 May','2026 42 June',
-            '2026 43 July','Agentic AI AU - March 2026','Agentic AI AU - April 2026', 'Agentic AI AU - May 2026','Agentic Generalist Course',
+            '2026 43 July','2026 44 August' ,'Agentic AI AU - March 2026','Agentic AI AU - April 2026', 'Agentic AI AU - May 2026','Agentic Generalist Course',
             'Agentic AI AU - June 2026','Agentic AI Generalist AU - June 2026', 'Agentic AI AU - July 2026','Agentic AI AU - August 2026',
             'Agentic AI - Generalist AU - Aug 2026','Agentic AI AU - September 2026'
         ]
