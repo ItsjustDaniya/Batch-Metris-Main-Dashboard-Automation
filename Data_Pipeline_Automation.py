@@ -155,6 +155,7 @@ MONTH_REPLACEMENTS = {
     'Professional Certificate Course In Data Science June 2026' : '2026 42 June',
     'Professional Certificate Course In Data Science July 2026' : '2026 43 July',
     'Professional Certificate Course In Data Science August 2026' : '2026 44 August',
+    'Professional Certificate Course In Data Science September 2026' : '2026 45 September',
     'DS Xcelerate AU':'DS Xcelerate',
     'ASD Xcelerate AU':'ASD Xcelerate',
     'Agentic AI AU':'Agentic AI',
