@@ -1,4 +1,3 @@
-I only need it to take the main classes, not the sync ups or others, only  non mandatory to be removed in this if there import os
 import time
 import json
 import calendar
@@ -65,7 +64,7 @@ def write_sheet(sheet_key, worksheet_name, df):
     Write DataFrame to Google Sheet with retry logic and rate limit handling
     """
     print(f"🔄 Updating sheet: {worksheet_name} ({len(df)} rows)")
-    
+
     for attempt in range(1, 6):
         try:
             time.sleep(2)  # Rate limit protection
@@ -185,17 +184,17 @@ def apply_month_replacements(series):
 # -------------------- SECTION 1: NPS --------------------
 def run_nps():
     print("\n📌 Running: NPS")
-    
+
     try:
         r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/9452/query/json')
         data = validate_response(r, '9452')
         if not data:
             print("⚠️ Card 9452 returned NO data — skipping write. Check the card in Metabase.")
             return
-        
+
         df = pd.DataFrame(data)
         print(f"📊 Fetched {len(df)} NPS records")
-        
+
         df = df.rename(columns={'course_name': 'Batch'})
         df['admin_unit_name'] = apply_month_replacements(df['admin_unit_name'])
 
@@ -267,7 +266,7 @@ def run_nps():
         df.loc[df['previous_nps_category'].isna(), 'sentiment'] = 'No Previous'
 
         write_sheet(SHEET_NPS, "NPS_NEW", df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_nps: {e}")
         traceback.print_exc()
@@ -276,7 +275,7 @@ def run_nps():
 # -------------------- SECTION 2: PROJECTS VIEW --------------------
 def run_projects_view():
     print("\n📌 Running: Projects View")
-    
+
     try:
         r1 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6959/query/json')
         time.sleep(1)
@@ -287,7 +286,7 @@ def run_projects_view():
         data1 = validate_response(r1, '6959')
         data2 = validate_response(r2, '6960')
         data3 = validate_response(r3, '6289')
-        
+
         if not data1 or not data2 or not data3:
             print("⚠️ One or more API responses are empty")
             return
@@ -295,7 +294,7 @@ def run_projects_view():
         df1 = pd.DataFrame(data1)
         df2 = pd.DataFrame(data2)
         df3 = pd.DataFrame(data3)[['user_id', 'au_batch_name', 'label','au_start_date']]
-        
+
         print(f"📊 df1: {len(df1)}, df2: {len(df2)}, df3: {len(df3)}")
 
         concatenated_df = pd.concat([df1, df2], axis=0, ignore_index=True)
@@ -313,7 +312,7 @@ def run_projects_view():
         concatenated_df = pd.merge(screened_df, df3, on='user_id')
 
         # Also update Projects-1 (full concatenated with datetime cols)
-        
+
         concatenated_df['Submission Time'] = pd.to_datetime(concatenated_df['Submission Time'])
         concatenated_df['latest_feedback_given_time'] = pd.to_datetime(concatenated_df['latest_feedback_given_time'])
         concatenated_df['project_deadline_date'] = pd.to_datetime(concatenated_df['project_deadline_date'])
@@ -329,18 +328,18 @@ def run_projects_view():
             latest_feedback = row['latest_feedback_given_time']
             submission_status = row['Submission Status']
             marks_obtained = row['marks_obtained']
-        
+
             if pd.notna(submission_time) and pd.notna(latest_feedback) and submission_time > latest_feedback:
                 return 1
             elif pd.notna(submission_time) and pd.isna(latest_feedback) and submission_status == 'Submitted' and marks_obtained == 0:
                 return 2
             else:
                 return 0
-        
+
         concatenated_df['re_evaluation_flag'] = concatenated_df.apply(get_re_evaluation_flag, axis=1)
 
         write_sheet(SHEET_PROJECTS_MAIN, "Projects-1", concatenated_df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_projects_view: {e}")
         traceback.print_exc()
@@ -349,7 +348,7 @@ def run_projects_view():
 # -------------------- SECTION 3: LECTURES DATA --------------------
 def run_lectures():
     print("\n📌 Running: Lectures Data")
-    
+
     try:
         r1 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6031/query/json')
         time.sleep(1)
@@ -357,19 +356,19 @@ def run_lectures():
 
         data1 = validate_response(r1, '6031')
         data2 = validate_response(r2, '8646')
-        
+
         if not data1 or not data2:
             print("⚠️ One or more API responses are empty")
             return
 
         df  = pd.DataFrame(data1)
         df1 = pd.DataFrame(data2)
-        
+
         print(f"📊 df: {len(df)}, df1: {len(df1)}")
 
         df2 = pd.merge(df, df1, on=['lecture_id', 'lecture_date', 'course_name'], how='inner')
         print(f"📊 After merge: {len(df2)}")
-        
+
         df2 = df2.fillna(0)
         df2 = df2.dropna(subset=['module_name'])
 
@@ -382,7 +381,7 @@ def run_lectures():
         )
         df2 = df2.rename(columns={'course_name': 'Batch', 'module_name': 'Module'})
         write_sheet(SHEET_BATCH_REPORT, "Batch_Report", df2)
-        
+
     except Exception as e:
         print(f"❌ Error in run_lectures: {e}")
         traceback.print_exc()
@@ -391,20 +390,20 @@ def run_lectures():
 # -------------------- SECTION 4: ASSIGNMENT QUESTIONS BUCKET --------------------
 def run_assignment_questions_bucket():
     print("\n📌 Running: Assignment Questions Bucket")
-    
+
     try:
         r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/7939/query/json')
         data = validate_response(r, '7939')
         if not data:
             return
-        
+
         df = pd.DataFrame(data)
         print(f"📊 Fetched {len(df)} records")
-        
+
         df = df.fillna(0)
         df = df.rename(columns={'batch_name': 'Batch', 'module_name': 'Module'})
         write_sheet(SHEET_PROJECTS_MAIN, "Assignments_questions_bucket", df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_assignment_questions_bucket: {e}")
         traceback.print_exc()
@@ -413,7 +412,7 @@ def run_assignment_questions_bucket():
 # -------------------- SECTION 5: PROJECTS RAW --------------------
 def run_projects_raw():
     print("\n📌 Running: Projects Raw")
-    
+
     try:
         r1 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6241/query/json')
         time.sleep(1)
@@ -424,7 +423,7 @@ def run_projects_raw():
         data1 = validate_response(r1, '6241')
         data2 = validate_response(r2, '6242')
         data3 = validate_response(r3, '6289')
-        
+
         if not data1 or not data2 or not data3:
             print("⚠️ One or more API responses are empty")
             return
@@ -432,7 +431,7 @@ def run_projects_raw():
         df1 = pd.DataFrame(data1)
         df2 = pd.DataFrame(data2)
         df3 = pd.DataFrame(data3)[['user_id', 'au_batch_name', 'label']]
-        
+
         print(f"📊 df1: {len(df1)}, df2: {len(df2)}, df3: {len(df3)}")
 
         concatenated_df = pd.concat([df1, df2], axis=0, ignore_index=True)
@@ -444,7 +443,7 @@ def run_projects_raw():
         screened_df_1['project_deadline_date'] = pd.to_datetime(screened_df_1['project_deadline_date'])
 
         write_sheet(SHEET_PROJECTS_MAIN, "Projects", screened_df_1)
-        
+
     except Exception as e:
         print(f"❌ Error in run_projects_raw: {e}")
         traceback.print_exc()
@@ -453,7 +452,7 @@ def run_projects_raw():
 # -------------------- SECTION 6: PROJECT EVALUATIONS --------------------
 def run_project_evaluations():
     print("\n📌 Running: Project Evaluations")
-    
+
     try:
         r1 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6578/query/json')
         time.sleep(1)
@@ -461,16 +460,16 @@ def run_project_evaluations():
 
         data1 = validate_response(r1, '6578')
         data2 = validate_response(r2, '6579')
-        
+
         if not data1 or not data2:
             print("⚠️ One or more API responses are empty")
             return
 
         df1 = pd.DataFrame(data1)
         df2 = pd.DataFrame(data2)
-        
+
         print(f"📊 df1: {len(df1)}, df2: {len(df2)}")
-        
+
         df = pd.concat([df1, df2], axis=0, ignore_index=True)
 
         df['Submission Time'] = pd.to_datetime(df['Submission Time'])
@@ -484,7 +483,7 @@ def run_project_evaluations():
         filtered_df = filtered_df.rename(columns={'User ID': 'user_id'})
 
         write_sheet(SHEET_EVALUATIONS, "Project_evaluations", filtered_df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_project_evaluations: {e}")
         traceback.print_exc()
@@ -493,7 +492,7 @@ def run_project_evaluations():
 # -------------------- SECTION 7: LECTURE QUALITY --------------------
 def run_lecture_quality():
     print("\n📌 Running: Lecture Quality")
-    
+
     try:
         r1 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/8646/query/json')
         time.sleep(1)
@@ -504,16 +503,16 @@ def run_lecture_quality():
         data1 = validate_response(r1, '8646')
         data2 = validate_response(r2, '9192')
         data3 = validate_response(r3, '9166')
-        
+
         if not data1 or not data2 or not data3:
             print("⚠️ One or more API responses are empty")
             return
 
         df1 = pd.DataFrame(data1)
         df2 = pd.DataFrame(data2)
-        
+
         print(f"📊 df1: {len(df1)}, df2: {len(df2)}")
-        
+
         # Validate merge keys
         if 'lecture_id' not in df1.columns or 'lecture_id' not in df2.columns:
             print("❌ Missing 'lecture_id' column for merge")
@@ -524,11 +523,11 @@ def run_lecture_quality():
 
         df3 = pd.merge(df1, df2, on=['lecture_id', 'lecture_date'], how='inner')
         print(f"📊 After first merge: {len(df3)}")
-        
+
         if df3.empty:
             print("⚠️ No matching records after merge")
             return
-        
+
         df4 = df3.rename(columns={'course_name': 'Batch', 'lecture_date': 'date'})
 
         df_in_class = pd.DataFrame(data3)
@@ -536,9 +535,9 @@ def run_lecture_quality():
 
         df5 = pd.merge(df4, df_in_class, on=['Batch', 'date'], how='left')
         print(f"📊 Final shape: {len(df5)}")
-        
+
         write_sheet(SHEET_BATCH_REPORT, "Lecture_Quality", df5)
-        
+
     except Exception as e:
         print(f"❌ Error in run_lecture_quality: {e}")
         traceback.print_exc()
@@ -547,18 +546,18 @@ def run_lecture_quality():
 # -------------------- SECTION 8: LECTURE SUBJECTIVE FEEDBACK --------------------
 def run_lecture_subjective_feedback():
     print("\n📌 Running: Lecture Subjective Feedback")
-    
+
     try:
         r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/5037/query/json')
         data = validate_response(r, '5037')
         if not data:
             return
-        
+
         df = pd.DataFrame(data)
         print(f"📊 Fetched {len(df)} records")
-        
+
         write_sheet(SHEET_LECTURE_SUBJ, "Lecture_Subjective_Feedback", df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_lecture_subjective_feedback: {e}")
         traceback.print_exc()
@@ -567,20 +566,20 @@ def run_lecture_subjective_feedback():
 # -------------------- SECTION 9: MENTOR SESSIONS --------------------
 def run_mentor_sessions():
     print("\n📌 Running: Mentor Sessions")
-    
+
     try:
         r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6161/query/json')
         data = validate_response(r, '6161')
         if not data:
             return
-        
+
         df = pd.DataFrame(data)
         print(f"📊 Fetched {len(df)} records")
-        
+
         df = df.rename(columns={'batch': 'Batch'})
         df['week_view'] = pd.to_datetime(df['week_view'])
         write_sheet(SHEET_MENTOR, "Mentor_sessions", df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_mentor_sessions: {e}")
         traceback.print_exc()
@@ -589,19 +588,19 @@ def run_mentor_sessions():
 # -------------------- SECTION 10: MENTOR GROUP SESSIONS --------------------
 def run_mentor_group_sessions():
     print("\n📌 Running: Mentor Group Sessions")
-    
+
     try:
         r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6184/query/json')
         data = validate_response(r, '6184')
         if not data:
             return
-        
+
         df = pd.DataFrame(data)
         print(f"📊 Fetched {len(df)} records")
-        
+
         df = df.rename(columns={'batch': 'Batch', 'Mentor Name': 'mentor_name'})
         write_sheet(SHEET_MENTOR, "Mentor_group_sessions", df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_mentor_group_sessions: {e}")
         traceback.print_exc()
@@ -610,31 +609,31 @@ def run_mentor_group_sessions():
 # -------------------- SECTION 11: MENTOR SLOTS + MENTOR BATCH --------------------
 def run_mentor_slots_and_batch():
     print("\n📌 Running: Mentor Slots & Mentor-Batch")
-    
+
     try:
         r3 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/7019/query/json')
         time.sleep(1)
         r6 = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/7941/query/json')
-        
+
         data3 = validate_response(r3, '7019')
         data6 = validate_response(r6, '7941')
-        
+
         if not data3 or not data6:
             print("⚠️ One or more API responses are empty")
             return
-        
+
         df3 = pd.DataFrame(data3)
         df6 = pd.DataFrame(data6)
-        
+
         print(f"📊 df3: {len(df3)}, df6: {len(df6)}")
-        
+
         df3['date'] = pd.to_datetime(df3['date'])
         write_sheet(SHEET_MENTOR, "Mentor_slots", df3)
 
         df5 = pd.merge(df6, df3, on=['mentor_id', 'mentor_name'], how='left')
         df5 = df5.fillna(0)
         write_sheet(SHEET_MENTOR, "Mentor-Batch", df5)
-        
+
     except Exception as e:
         print(f"❌ Error in run_mentor_slots_and_batch: {e}")
         traceback.print_exc()
@@ -643,19 +642,19 @@ def run_mentor_slots_and_batch():
 # -------------------- SECTION 12: MENTOR CSAT --------------------
 def run_mentor_csat():
     print("\n📌 Running: Mentor CSAT")
-    
+
     try:
         r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6167/query/json')
         data = validate_response(r, '6167')
         if not data:
             return
-        
+
         df = pd.DataFrame(data)
         print(f"📊 Fetched {len(df)} records")
-        
+
         df = df.rename(columns={'batch': 'Batch', 'Mentor Name': 'mentor_name'})
         write_sheet(SHEET_MENTOR, "Mentor_CSAT", df)
-        
+
     except Exception as e:
         print(f"❌ Error in run_mentor_csat: {e}")
         traceback.print_exc()
@@ -700,14 +699,14 @@ if __name__ == "__main__":
     if failed_tasks:
         print(f"❌ Failed: {len(failed_tasks)}")
         print(f"   Tasks: {', '.join(failed_tasks)}")
-    
+
     current_time = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d-%b-%Y %H:%M:%S IST")
     print(f"\n📅 End time: {current_time}")
 
     end_time = time.time()
     mins, secs = divmod(end_time - start_time, 60)
     print(f"⏱️  Total execution time: {int(mins)}m {int(secs)}s")
-    
+
     if failed_tasks:
         print("\n⚠️  Pipeline completed with errors")
     else:
