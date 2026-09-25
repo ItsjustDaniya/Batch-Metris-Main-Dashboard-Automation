@@ -48,17 +48,47 @@ SHEET_MENTOR          = '1XQRBzWqhn5DkEypVfCUJzdG5Y0P94oztPpXP4IscIVA'
 SHEET_NPS             = '1fK-H9xyW9h0dnO97GHc0i07x7JHVhAgfclywKZ7bA-4'
 
 # -------------------- UTILITIES --------------------
-def mb_post(card_url, retry_count=0):
-    try:
-        r = requests.post(card_url, headers=METABASE_HEADERS, timeout=120)
-        r.raise_for_status()
-        return r
-    except requests.exceptions.Timeout:
-        print(f"⏱️ Timeout for {card_url}")
-        raise
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Request failed for {card_url}: {e}")
-        raise
+def mb_post(card_url, retry_count=0, max_tries=4):
+    """POST to a Metabase card's /query/json with a long read timeout and retries.
+
+    Heavy cards (8646 attendance, 9192 instructor rating) can take several
+    minutes to export while the pipeline is hitting Metabase with other cards.
+    The old 120s timeout + single attempt meant those tasks silently skipped
+    writing their sheets (Lecture Quality / Lectures Data were stale for days).
+    Now: 30s to connect, up to 10 min to read, and up to 4 attempts with
+    backoff on timeouts, dropped/truncated responses and 5xx/429 errors.
+    """
+    retryable = (
+        requests.exceptions.Timeout,
+        requests.exceptions.ConnectionError,
+        requests.exceptions.ChunkedEncodingError,
+    )
+    for attempt in range(1, max_tries + 1):
+        try:
+            t0 = time.time()
+            r = requests.post(card_url, headers=METABASE_HEADERS, timeout=(30, 600))
+            if r.status_code in (429, 500, 502, 503, 504):
+                raise requests.exceptions.HTTPError(f"HTTP {r.status_code}", response=r)
+            r.raise_for_status()
+            # Metabase returns HTTP 202/200 with an error object when the query itself fails
+            try:
+                body = r.json()
+                if isinstance(body, dict) and (body.get("error") or body.get("status") == "failed"):
+                    raise requests.exceptions.HTTPError(f"Metabase query error: {str(body.get('error'))[:300]}", response=r)
+            except ValueError:
+                pass
+            print(f"   ✅ {card_url.split('/api/card/')[-1].split('/')[0]} fetched in {time.time() - t0:.0f}s")
+            return r
+        except retryable + (requests.exceptions.HTTPError,) as e:
+            if attempt == max_tries:
+                print(f"❌ Request failed for {card_url} after {max_tries} attempts: {e}")
+                raise
+            wait = 30 * attempt
+            print(f"⏳ Attempt {attempt}/{max_tries} failed for {card_url}: {e.__class__.__name__}: {str(e)[:150]} — retrying in {wait}s")
+            time.sleep(wait)
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed for {card_url}: {e}")
+            raise
 
 def write_sheet(sheet_key, worksheet_name, df):
     """
