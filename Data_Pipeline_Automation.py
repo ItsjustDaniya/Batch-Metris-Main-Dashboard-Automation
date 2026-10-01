@@ -201,7 +201,7 @@ MONTH_REPLACEMENTS = {
     'Agentic AI - Generalist AU - Aug 2026':'Agentic AI - Generalist AU - Aug 2026',
     'Agentic AI AU - September 2026':'Agentic AI AU - September 2026', 'Agentic AI AU - October 2026':'Agentic AI AU - October 2026'
 }
-}
+
 
 def apply_month_replacements(series):
     """Apply month name replacements to a pandas Series"""
