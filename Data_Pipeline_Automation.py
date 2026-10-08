@@ -138,6 +138,8 @@ def validate_response(response, card_id):
         return None
 
 # -------------------- MONTH REPLACEMENTS --------------------
+# Each month: add the new batch's full Metabase name here.
+# DS batches follow the 'YYYY NN Month' pattern (NN keeps counting up: 46 = Oct 2026, 47 = Nov 2026, ...).
 MONTH_REPLACEMENTS = {
     'Data Science Certification - December 2022': '2022 12 Dec',
     'Data Science Certification - January 2023': '2023 01 Jan',
@@ -199,7 +201,8 @@ MONTH_REPLACEMENTS = {
     'Agentic AI AU - July 2026':'Agentic AI AU - July 2026',
     'Agentic AI AU - August 2026':'Agentic AI AU - August 2026',
     'Agentic AI - Generalist AU - Aug 2026':'Agentic AI - Generalist AU - Aug 2026',
-    'Agentic AI AU - September 2026':'Agentic AI AU - September 2026', 'Agentic AI AU - October 2026':'Agentic AI AU - October 2026'
+    'Agentic AI AU - September 2026':'Agentic AI AU - September 2026',
+    'Agentic AI AU - October 2026':'Agentic AI AU - October 2026'
 }
 
 
@@ -210,9 +213,28 @@ def apply_month_replacements(series):
     # Sort keys longest-first so specific batch names (e.g. 'Agentic AI AU - March 2026')
     # match before their shorter prefixes (e.g. 'Agentic AI AU'). Regex alternation is
     # leftmost-match, not longest-match, so without this the prefix wins and truncates
-    # the value, causing it to be dropped by the batches_to_retain filter.
+    # the value, causing it to be dropped by the NPS batch filter.
     pattern = '|'.join(sorted(map(re.escape, MONTH_REPLACEMENTS.keys()), key=len, reverse=True))
     return series.str.replace(pattern, replace_month, regex=True)
+
+
+def keep_nps_batch(name):
+    """Decide whether a (replaced) batch name belongs in NPS_NEW.
+
+    Replaces the old hardcoded batches_to_retain list, which had to be edited
+    every month (October 2026 was missing, so its NPS rows were silently dropped).
+    Keeps:
+      - DS batches numbered 25+ ('2025 25 Jan' onwards, incl. all future months)
+      - every Agentic AI / Agentic Generalist batch
+    Excludes DS Xcelerate, ASD Xcelerate, 2024 and older batches, and any
+    name that wasn't mapped in MONTH_REPLACEMENTS.
+    """
+    if not isinstance(name, str):
+        return False
+    m = re.match(r'^\d{4} (\d+) ', name)
+    if m:
+        return int(m.group(1)) >= 25
+    return name.startswith('Agentic')
 
 # -------------------- SECTION 1: NPS --------------------
 def run_nps():
@@ -231,21 +253,14 @@ def run_nps():
         df = df.rename(columns={'course_name': 'Batch'})
         df['admin_unit_name'] = apply_month_replacements(df['admin_unit_name'])
 
-        batches_to_retain = [
-            '2025 25 Jan', '2025 26 Feb', '2025 27 March', '2025 28 April',
-            '2025 29 May', '2025 30 June', '2025 31 July', '2025 32 August',
-            '2025 33 September', '2025 34 October', '2025 35 November',
-            '2025 36 December', '2026 37 January', '2026 38 Febraury','Agentic AI','2026 39 March','2026 40 April','2026 41 May','2026 42 June',
-            '2026 43 July','2026 44 August' ,'2026 45 September','Agentic AI AU - March 2026','Agentic AI AU - April 2026', 'Agentic AI AU - May 2026','Agentic Generalist Course',
-            'Agentic AI AU - June 2026','Agentic AI Generalist AU - June 2026', 'Agentic AI AU - July 2026','Agentic AI AU - August 2026',
-            'Agentic AI - Generalist AU - Aug 2026','Agentic AI AU - September 2026'
-        ]
+        # --- DIAGNOSTIC: batch names that are being dropped (helps spot unmapped new batches) ---
+        all_batches = set(df['admin_unit_name'].dropna().unique())
+        dropped = sorted(b for b in all_batches if not keep_nps_batch(b))
+        if dropped:
+            print(f"ℹ️ NPS batches excluded by filter: {dropped}")
 
-        # --- OPTIONAL DIAGNOSTIC: batch names present in data but missing from retain list ---
-        # unmatched = set(df['admin_unit_name'].dropna().unique()) - set(batches_to_retain)
-        # print("Batches present but NOT in retain list:", sorted(unmatched))
-
-        df = df[df['admin_unit_name'].isin(batches_to_retain)]
+        df = df[df['admin_unit_name'].apply(keep_nps_batch)].copy()
+        print(f"📊 {len(df)} NPS records after batch filter")
         df['form_fill_date'] = pd.to_datetime(df['form_fill_date'])
 
         def get_month_bucket(date):
