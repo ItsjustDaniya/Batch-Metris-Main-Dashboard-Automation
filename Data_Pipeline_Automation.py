@@ -137,6 +137,13 @@ def validate_response(response, card_id):
         print(f"❌ Invalid JSON response from card {card_id}")
         return None
 
+
+def move_segment_cols_to_end(df):
+    """Rename program / gem_status (from card 8646) and put them as the last columns."""
+    df = df.rename(columns={'program': 'Program', 'gem_status': 'GEM Status'})
+    cols = [c for c in ['Program', 'GEM Status'] if c in df.columns]
+    return df[[c for c in df.columns if c not in cols] + cols]
+
 # -------------------- MONTH REPLACEMENTS --------------------
 # Each month: add the new batch's full Metabase name here.
 # DS batches follow the 'YYYY NN Month' pattern (NN keeps counting up: 46 = Oct 2026, 47 = Nov 2026, ...).
@@ -428,6 +435,7 @@ def run_lectures():
                       else x
         )
         df2 = df2.rename(columns={'course_name': 'Batch', 'module_name': 'Module'})
+        df2 = move_segment_cols_to_end(df2)
         write_sheet(SHEET_BATCH_REPORT, "Batch_Report", df2)
         
     except Exception as e:
@@ -584,6 +592,7 @@ def run_lecture_quality():
         df5 = pd.merge(df4, df_in_class, on=['Batch', 'date'], how='left')
         print(f"📊 Final shape: {len(df5)}")
         
+        df5 = move_segment_cols_to_end(df5)
         write_sheet(SHEET_BATCH_REPORT, "Lecture_Quality", df5)
         
     except Exception as e:
