@@ -94,6 +94,7 @@ def write_sheet(sheet_key, worksheet_name, df):
     """
     Write DataFrame to Google Sheet with retry logic and rate limit handling
     """
+    df = add_gem_status(df, worksheet_name)
     print(f"🔄 Updating sheet: {worksheet_name} ({len(df)} rows)")
     
     for attempt in range(1, 6):
@@ -143,6 +144,56 @@ def move_segment_cols_to_end(df):
     df = df.rename(columns={'program': 'Program', 'gem_status': 'GEM Status'})
     cols = [c for c in ['Program', 'GEM Status'] if c in df.columns]
     return df[[c for c in df.columns if c not in cols] + cols]
+
+
+# -------------------- GEM / NON-GEM TAG --------------------
+# Every per-student tab gets a "GEM Status" column at the end (GEM / Non-GEM / Not tagged).
+# Source: card 6289 (DS-Label mapping) -> gem_label (labels 728 / 729 on the AU enrolment).
+_GEM_MAP = None
+GEM_ID_COLUMNS = ['user_id', 'student_user_id', 'User ID', 'UserID', 'student_id', 'form_filled_by_user_id']
+
+
+def get_gem_map():
+    """user_id -> 'GEM' / 'Non-GEM', fetched once per run from card 6289."""
+    global _GEM_MAP
+    if _GEM_MAP is not None:
+        return _GEM_MAP
+    _GEM_MAP = {}
+    try:
+        r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6289/query/json')
+        data = validate_response(r, '6289')
+        if data:
+            g = pd.DataFrame(data)
+            if 'gem_label' in g.columns:
+                g = g.dropna(subset=['gem_label'])
+                g['user_id'] = pd.to_numeric(g['user_id'], errors='coerce')
+                sort_col = next((c for c in ['au_start_date', 'AU_start_date'] if c in g.columns), None)
+                if sort_col:
+                    g = g.sort_values(sort_col, ascending=False)   # latest AU wins
+                g = g.drop_duplicates('user_id')
+                _GEM_MAP = dict(zip(g['user_id'], g['gem_label']))
+        print(f"🏷️  GEM map loaded: {len(_GEM_MAP)} tagged students")
+    except Exception as e:
+        print(f"⚠️ Could not load GEM map from card 6289: {e} — GEM Status will be 'Not tagged'")
+    return _GEM_MAP
+
+
+def add_gem_status(df, worksheet_name=''):
+    """Put a 'GEM Status' column at the end of any per-student table."""
+    if df is None or df.empty:
+        return df
+    if 'gem_status' in df.columns and 'GEM Status' not in df.columns:
+        df = df.rename(columns={'gem_status': 'GEM Status'})
+    if 'GEM Status' not in df.columns:
+        id_col = next((c for c in GEM_ID_COLUMNS if c in df.columns), None)
+        if id_col is None:
+            print(f"   ℹ️ {worksheet_name}: no student id column — GEM Status not added")
+            return df
+        gem = get_gem_map()
+        df = df.copy()
+        df['GEM Status'] = pd.to_numeric(df[id_col], errors='coerce').map(gem).fillna('Not tagged')
+    # keep GEM Status as the last column
+    return df[[c for c in df.columns if c != 'GEM Status'] + ['GEM Status']]
 
 # -------------------- MONTH REPLACEMENTS --------------------
 # Each month: add the new batch's full Metabase name here.
