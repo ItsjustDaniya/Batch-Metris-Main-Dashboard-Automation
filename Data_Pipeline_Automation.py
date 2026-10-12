@@ -18,12 +18,10 @@ start_time = time.time()
 # -------------------- ENV & AUTH --------------------
 METABASE_API_KEY = os.getenv("METABASE_API_KEY")
 service_account_json = os.getenv("SERVICE_ACCOUNT_JSON")
-SHEET_KEY = os.getenv("BATCH_METRICS_SHEET_KEY")
+SHEET_KEY = '1BQhfdhQANZUuuLvpUc5NgqBk9ONntyNwZOcXxvhuxCg'   # Batch metrics main sheet
 
 if not METABASE_API_KEY or not service_account_json:
     raise ValueError("❌ Missing environment variables. Check GitHub secrets.")
-if not SHEET_KEY:
-    raise ValueError("❌ BATCH_METRICS_SHEET_KEY is not set. Check GitHub secrets.")
 
 # -------------------- GOOGLE AUTH --------------------
 service_info = json.loads(service_account_json)
