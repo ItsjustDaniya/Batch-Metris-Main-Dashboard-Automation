@@ -282,12 +282,12 @@ def run_placement_phase():
     summary['PR_%']          = (summary['PR_#']          / summary['Total_Eligible_#'] * 100).round(2)
 
     final_report = summary[[
-        'Batch', 'gem_label', 'Total_Eligible_#',
+        'Batch', 'Total_Eligible_#',
         'Recommended_#', 'Recommended_%',
         'Grooming_#', 'Grooming_%',
         'PR_#', 'PR_%',
         'Placement_#', 'Placement_%',
-        'Program'
+        'gem_label', 'Program'   # new columns, kept at the end so Looker doesn't break
     ]]
     write_sheet(SHEET_KEY, "Placement_Phase", final_report)
 
@@ -398,7 +398,7 @@ def run_mid_mc_attempt_wise():
         'contest_date': 'Contest_date'
     })
 
-    result_cols = ['Admin_unit_name', 'gem_label', 'Batch_strength', 'Module_name', 'Attempt_number', 'Contest_date', 'Attempt%', 'Clearance%']
+    result_cols = ['Admin_unit_name', 'Batch_strength', 'Module_name', 'Attempt_number', 'Contest_date', 'Attempt%', 'Clearance%', 'gem_label']
     final_report = final_df[result_cols].copy()
     final_report['Contest_date'] = final_report['Contest_date'].dt.strftime('%Y-%m-%d')
     final_report['Attempt%']   = final_report['Attempt%'].round(2)
@@ -580,11 +580,12 @@ def calculate_project_metrics_robust(df):
     result_df = result_df.sort_values(by=['Sort_Key', 'Module']).drop(columns=['Sort_Key'])
 
     final_columns = [
-        'au_batch_name', 'gem_label', 'batch', 'Module', 'Release Date', 'Enrolled Count',
+        'au_batch_name', 'batch', 'Module', 'Release Date', 'Enrolled Count',
         'M0 Attempt %', 'M0 Clearance %',
         'M1 Attempt %', 'M1 Clearance %',
         'M2 Attempt %', 'M2 Clearance %',
-        'MTD Attempt %', 'MTD Clearance %'
+        'MTD Attempt %', 'MTD Clearance %',
+        'gem_label'   # new column, kept at the end so Looker doesn't break
     ]
     return result_df[final_columns]
 
