@@ -46,6 +46,10 @@ SHEET_EVALUATIONS     = '1gUshIBjLIVh4CqhVACVirqkPuHx6muCZIvXcXRY9qG4'
 SHEET_LECTURE_SUBJ    = '1QKoJUTCM_rz7y0DVh_xEwqV1aGGd9dPHcZaLxBUtpiU'
 SHEET_MENTOR          = '1XQRBzWqhn5DkEypVfCUJzdG5Y0P94oztPpXP4IscIVA'
 SHEET_NPS             = '1fK-H9xyW9h0dnO97GHc0i07x7JHVhAgfclywKZ7bA-4'
+# In-class / post-class MCQ quizzes (card 6230 "DS - MCQS - Score") -> "MCQs" sheet, Assessments tab
+# (the "MCQs - Assessments" Looker source). The service account needs Editor access on this sheet.
+SHEET_MCQ             = '1OlOtzHe6fhiaMst4UAlI8aSdl9xwJCoLzPv060qJm4A'
+MCQ_TAB               = 'Assessments'
 
 # -------------------- UTILITIES --------------------
 def mb_post(card_url, retry_count=0, max_tries=4):
@@ -768,6 +772,31 @@ def run_mentor_csat():
         traceback.print_exc()
         raise
 
+# -------------------- MCQ QUIZZES (card 6230) --------------------
+def run_mcq_assessments():
+    print("\n📌 Running: MCQ Assessments")
+    if not SHEET_MCQ or not MCQ_TAB:
+        print("   ⏭️ SHEET_MCQ / MCQ_TAB not set — skipping")
+        return
+    try:
+        r = mb_post('https://metabase-lierhfgoeiwhr.newtonschool.co/api/card/6230/query/json')
+        data = validate_response(r, '6230')
+        if not data:
+            return
+        df = pd.DataFrame(data)
+        print(f"📊 Fetched {len(df)} records")
+        # same field names the Looker source already uses
+        df = df.rename(columns={'lu_batch_name': 'Batch', 'module_name': 'Module', 'Date': 'date'})
+        cols = ['user_id', 'student_name', 'Batch', 'admin_unit_name', 'contest_id', 'contest_name', 'date',
+                'Module', 'total_qs', 'marked_qs', 'correct_qs', 'obtained_numerator', 'module_denominator',
+                'module_wise_score']
+        df = df[[c for c in cols if c in df.columns] + [c for c in df.columns if c not in cols]]
+        write_sheet(SHEET_MCQ, MCQ_TAB, df)
+    except Exception as e:
+        print(f"❌ Error in run_mcq_assessments: {e}")
+        traceback.print_exc()
+        raise
+
 # -------------------- MAIN: RUN ALL --------------------
 if __name__ == "__main__":
     print("🚀 Starting Data Pipeline Automation...")
@@ -786,6 +815,7 @@ if __name__ == "__main__":
         ("Mentor Group Sessions",       run_mentor_group_sessions),
         ("Mentor Slots & Batch",        run_mentor_slots_and_batch),
         ("Mentor CSAT",                 run_mentor_csat),
+        ("MCQ Assessments",             run_mcq_assessments),
     ]
 
     success_count = 0
