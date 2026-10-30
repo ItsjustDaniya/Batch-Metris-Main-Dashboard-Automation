@@ -94,6 +94,10 @@ def mb_post(card_url, retry_count=0, max_tries=4):
             print(f"❌ Request failed for {card_url}: {e}")
             raise
 
+# Tabs whose number formats are reset before each write (stale formats were rounding values).
+RESET_NUMBER_FORMAT_TABS = {"Lecture_Quality"}
+
+
 def write_sheet(sheet_key, worksheet_name, df):
     """
     Write DataFrame to Google Sheet with retry logic and rate limit handling
@@ -107,6 +111,13 @@ def write_sheet(sheet_key, worksheet_name, df):
             sheet = gc.open_by_key(sheet_key)
             ws = sheet.worksheet(worksheet_name)
             ws.clear()
+            if worksheet_name in RESET_NUMBER_FORMAT_TABS:
+                # ws.clear() wipes values but keeps old number formats. On Lecture_Quality a
+                # stale "#,##0" format made a 4.53 rating show (and get read) as "5".
+                sheet.batch_update({"requests": [{"repeatCell": {
+                    "range": {"sheetId": ws.id},
+                    "cell": {"userEnteredFormat": {}},
+                    "fields": "userEnteredFormat.numberFormat"}}]})
             set_with_dataframe(ws, df, include_index=False, include_column_header=True)
             print(f"✅ Successfully updated: {worksheet_name}")
             return
