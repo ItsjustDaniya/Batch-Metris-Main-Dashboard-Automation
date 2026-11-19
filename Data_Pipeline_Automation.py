@@ -262,6 +262,8 @@ MONTH_REPLACEMENTS = {
     'Professional Certificate Course In Data Science August 2026' : '2026 44 August',
     'Professional Certificate Course In Data Science September 2026' : '2026 45 September',
     'Professional Certificate Course In Data Science October 2026' : '2026 46 October',
+    'Professional Certificate Course In Data Science November 2026' : '2026 47 October',
+    'Professional Certificate Course In Data Science December 2026' : '2026 48 October',
     'DS Xcelerate AU':'DS Xcelerate',
     'ASD Xcelerate AU':'ASD Xcelerate',
     'Agentic AI AU':'Agentic AI',
@@ -275,7 +277,11 @@ MONTH_REPLACEMENTS = {
     'Agentic AI AU - August 2026':'Agentic AI AU - August 2026',
     'Agentic AI - Generalist AU - Aug 2026':'Agentic AI - Generalist AU - Aug 2026',
     'Agentic AI AU - September 2026':'Agentic AI AU - September 2026',
-    'Agentic AI AU - October 2026':'Agentic AI AU - October 2026'
+    'Agentic AI AU - October 2026':'Agentic AI AU - October 2026',
+    'Agentic AI AU - September 2026':'Agentic AI AU - November 2026',
+    'Agentic AI AU - September 2026':'Agentic AI AU - December 2026'
+
+
 }
 
 
